@@ -24,35 +24,30 @@ def decode(c, r):
     return v
 
 
-def code_dataframe(input_dataframe):
+def code_dataframe(input_dataframe, number_of_neurons, sigma_main, range_start, range_end):
     # load dataset
-    # dataframe = pandas.read_csv("housing.csv", delim_whitespace=True, header=None)
     input_dataset = input_dataframe.values
-
+    print(input_dataset.shape)
     # scale data
     min_max_scaler = preprocessing.MinMaxScaler()
     dataset_scaled = min_max_scaler.fit_transform(input_dataset)
     dataframe = pandas.DataFrame(dataset_scaled, columns=input_dataframe.columns)
 
-    numpy.savetxt("housing_dataset_scaled.csv", dataframe, delimiter=",")
+    print(dataframe)
+    print(dataframe.T.values)
+    print(pandas.DataFrame(numpy.cov(dataframe.T.values)))
 
-    # print(dataframe)
-    #
-    # print(pandas.DataFrame(min_max_scaler.inverse_transform(dataset_scaled), columns=input_dataframe.columns))
+    # numpy.savetxt("houseprice_regression/housing_dataset_scaled.csv", dataframe, delimiter=",")
 
     dataset = dataframe.values
+    print(len(dataset[0, :]))
+    number_of_features = len(dataset[0, :])
 
     # split into input (X) and output (Y)
-    X = dataset[:, 0:13]
-    Y = dataset[:, 13]
+    X = dataset[:, 0:number_of_features - 1 ]
+    Y = dataset[:, number_of_features - 1]
 
-    # print(pandas.DataFrame(X))
-    # print(pandas.DataFrame(Y))
-
-    number_of_neurons = 10
-
-    s = numpy.linspace(0.0, 1.0, num=number_of_neurons)
-    sigma_main = 0.2
+    s = numpy.linspace(range_start, range_end, num=number_of_neurons)
 
     coded_datasets = {}
 
@@ -67,7 +62,7 @@ def code_dataframe(input_dataframe):
 
     # Coding Y
     coded_datasets[len(coded_datasets)] = pandas.DataFrame(
-        columns=list(range(13 * number_of_neurons, 14 * number_of_neurons)))
+        columns=list(range((number_of_features - 1) * number_of_neurons, number_of_features * number_of_neurons)))
     for j in range(len(Y)):
         code_for_y = code(Y[j], s, sigma_main)
         coded_datasets[len(coded_datasets) - 1].loc[j] = code_for_y
@@ -80,21 +75,18 @@ def code_dataframe(input_dataframe):
     print(final_dataframe)
     plot_dataset(final_dataframe, 0, True)
 
-    numpy.savetxt("housing_target_prices_coded.csv", coded_datasets[len(coded_datasets) - 1], delimiter=",")
+    # numpy.savetxt("houseprice_regression/housing_target_prices_coded.csv", coded_datasets[len(coded_datasets) - 1], delimiter=",")
 
     return [final_dataframe, min_max_scaler]
 
 
-def decode_prediction(input_prediction):
-    number_of_neurons = 10
-    s = numpy.linspace(0.0, 1.0, num=number_of_neurons)
+def decode_prediction(input_prediction, number_of_neurons, range_start, range_end):
+    s = numpy.linspace(range_start, range_end, num=number_of_neurons)
     output = []
 
     for i in range(len(input_prediction)):
         decoded_value = decode(input_prediction[i], s)
-        # print(decoded_value)
         output.append(decoded_value)
-        # print(output)
     return output
 
 

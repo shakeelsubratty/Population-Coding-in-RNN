@@ -15,8 +15,11 @@ range_start = 0.0
 range_end = 1.0
 
 # load dataset
-dataframe = pandas.read_csv("houseprice_regression/housing.csv", delim_whitespace=True, header=None)
+dataframe = pandas.read_csv("mpg/mpg_data.csv", delim_whitespace=True, header=None)
 dataset = dataframe.values
+
+print(dataframe)
+print(dataset)
 
 number_of_features = len(dataset[0, :])
 
@@ -74,21 +77,21 @@ a = numpy.zeros([number_of_samples, number_of_features])
 a[:, number_of_features - 1] = decoded_prediction
 rescaled_decoded_prediction = min_max_scaler.inverse_transform(a)[:, number_of_features - 1]
 
-numpy.savetxt("houseprice_regression/housing_prediction_coded.csv", prediction, delimiter=",")
-numpy.savetxt("houseprice_regression/housing_prediction_decoded.csv", decoded_prediction, delimiter=",")
-numpy.savetxt("houseprice_regression/housing_prediction_decoded_rescaled.csv", rescaled_decoded_prediction,
-              delimiter=",")
+# numpy.savetxt("mgp/mgp_prediction_coded.csv", prediction, delimiter=",")
+# numpy.savetxt("mgp/mgp_predection_decoded.csv", decoded_prediction, delimiter=",")
+# numpy.savetxt("mgp/mgp_prediction_decoded_rescaled.csv", rescaled_decoded_prediction,
+#               delimiter=",")
 
 # Error between rescaled prediction and real values
-
+print(rescaled_decoded_prediction)
 print(mean_squared_error(dataset[:, number_of_features - 1], rescaled_decoded_prediction))
-
-X_uncoded = dataset[:, 0:number_of_features-1]
-Y_uncoded = dataset[:, number_of_features-1]
-
-estimator_uncoded = KerasRegressor(build_fn=baseline_model, epochs=100, batch_size=5, verbose=1)
-
-estimator_uncoded.fit(X_uncoded, Y_uncoded)
-prediction = estimator_uncoded.predict(X_uncoded)
-
-print(mean_squared_error(dataset[:, number_of_features - 1], prediction))
+#
+# X_uncoded = dataset[:, 0:number_of_features-1]
+# Y_uncoded = dataset[:, number_of_features-1]
+#
+# estimator_uncoded = KerasRegressor(build_fn=baseline_model, epochs=100, batch_size=5, verbose=1)
+#
+# estimator_uncoded.fit(X_uncoded, Y_uncoded)
+# prediction = estimator_uncoded.predict(X_uncoded)
+#
+# print(mean_squared_error(dataset[:, number_of_features - 1], prediction))

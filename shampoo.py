@@ -10,9 +10,17 @@ from keras.layers import Dense
 from keras.layers import LSTM
 from math import sqrt
 import matplotlib as mlp
+
 mlp.use('TkAgg')
 from matplotlib import pyplot
 import numpy
+import pop_coding
+
+# pop coding parameters
+number_of_neurons = 100
+sigma = 0.05
+range_start = -1.0
+range_end = 1.0
 
 
 # date-time parsing function for loading the dataset
@@ -39,57 +47,9 @@ def difference(dataset, interval=1):
     return Series(diff)
 
 
-# invert differenced value
-def inverse_difference(history, yhat, interval=1):
-    return yhat + history[-interval]
-
-
-# scale train and test data to [-1, 1]
-def scale(train, test):
-    # fit scaler
-    scaler = MinMaxScaler(feature_range=(-1, 1))
-    scaler = scaler.fit(train)
-    # transform train
-    train = train.reshape(train.shape[0], train.shape[1])
-    train_scaled = scaler.transform(train)
-    # transform test
-    test = test.reshape(test.shape[0], test.shape[1])
-    test_scaled = scaler.transform(test)
-    return scaler, train_scaled, test_scaled
-
-
-# inverse scaling for a forecasted value
-def invert_scale(scaler, X, value):
-    new_row = [x for x in X] + [value]
-    array = numpy.array(new_row)
-    array = array.reshape(1, len(array))
-    inverted = scaler.inverse_transform(array)
-    return inverted[0, -1]
-
-
-# fit an LSTM network to training data
-def fit_lstm(train, batch_size, nb_epoch, neurons):
-    X, y = train[:, 0:-1], train[:, -1]
-    X = X.reshape(X.shape[0], 1, X.shape[1])
-    model = Sequential()
-    model.add(LSTM(neurons, batch_input_shape=(batch_size, X.shape[1], X.shape[2]), stateful=True))
-    model.add(Dense(1))
-    model.compile(loss='mean_squared_error', optimizer='adam')
-    for i in range(nb_epoch):
-        model.fit(X, y, epochs=1, batch_size=batch_size, verbose=0, shuffle=False)
-        model.reset_states()
-    return model
-
-
-# make a one-step forecast
-def forecast_lstm(model, batch_size, X):
-    X = X.reshape(1, 1, len(X))
-    yhat = model.predict(X, batch_size=batch_size)
-    return yhat[0, 0]
-
-
 # load dataset
-series = read_csv('shampoo-sales.csv', header=0, parse_dates=[0], index_col=0, squeeze=True, date_parser=parser)
+series = read_csv('shampoo_sales/shampoo-sales.csv', header=0, parse_dates=[0], index_col=0, squeeze=True,
+                  date_parser=parser)
 
 # transform data to be stationary
 raw_values = series.values
@@ -99,32 +59,86 @@ diff_values = difference(raw_values, 1)
 supervised = timeseries_to_supervised(diff_values, 1)
 supervised_values = supervised.values
 
-# split data into train and test-sets
-train, test = supervised_values[0:-12], supervised_values[-12:]
+number_of_features = len(supervised_values[0, :])
+number_of_samples = len(supervised_values[:, 0])
 
-# transform the scale of the data
-scaler, train_scaled, test_scaled = scale(train, test)
+# apply population coding to dataset
+[supervised_coded, min_max_scaler] = pop_coding.code_dataframe(supervised, number_of_neurons, sigma, range_start,
+                                                               range_end)
+
+supervised_coded_values = supervised_coded.values
+
+number_of_coded_features = len(supervised_coded_values[0, :])
+
+# split data into train and test-sets
+
+train_coded = supervised_coded_values[0:-12]
+test_coded = supervised_coded_values[-12:]
+
+
+# invert differenced value
+def inverse_difference(history, yhat, interval=1):
+    return yhat + history[-interval]
+
+
+# fit an LSTM network to training data
+def fit_lstm(train, batch_size, nb_epoch, neurons):
+    X, y = train[:, 0:number_of_coded_features - number_of_neurons], train[:,
+                                                                     number_of_coded_features - number_of_neurons:number_of_coded_features]
+    X = X.reshape(X.shape[0], 1, X.shape[1])
+    print(X.shape)
+    model = Sequential()
+    model.add(LSTM(neurons, batch_input_shape=(batch_size, X.shape[1], X.shape[2]), stateful=True))
+    model.add(Dense(number_of_neurons))
+    model.compile(loss='mean_squared_error', optimizer='adam')
+    for i in range(nb_epoch):
+        print(i)
+        model.fit(X, y, epochs=1, batch_size=batch_size, verbose=0, shuffle=False)
+        model.reset_states()
+    return model
+
+
+# make a one-step forecast
+def forecast_lstm(model, batch_size, X):
+    X = X.reshape(1, 1, len(X))
+    yhat = model.predict(X, batch_size=batch_size)
+    # print(yhat)
+    return yhat
+
 
 # fit the model
-lstm_model = fit_lstm(train_scaled, 1, 3000, 4)
+lstm_model = fit_lstm(train_coded, 1, 100, 4)
+
+print(number_of_coded_features - number_of_neurons)
 # forecast the entire training dataset to build up state for forecasting
-train_reshaped = train_scaled[:, 0].reshape(len(train_scaled), 1, 1)
-lstm_model.predict(train_reshaped, batch_size=1)
+train_coded_reshaped = train_coded[:, 0:number_of_coded_features - number_of_neurons].reshape(len(train_coded), 1,
+                                                                                              number_of_coded_features - number_of_neurons)
+
+lstm_model.predict(train_coded_reshaped, batch_size=1)
 
 # walk-forward validation on the test data
 predictions = list()
-for i in range(len(test_scaled)):
+for i in range(len(test_coded)):
     # make one-step forecast
-    X, y = test_scaled[i, 0:-1], test_scaled[i, -1]
+    # print(test_coded)
+    X, y = test_coded[i, 0:number_of_coded_features - number_of_neurons], test_coded[i,
+                                                                          number_of_coded_features - number_of_neurons:number_of_coded_features]
     yhat = forecast_lstm(lstm_model, 1, X)
-    # invert scaling
-    yhat = invert_scale(scaler, X, yhat)
+
+    yhat = pop_coding.decode_prediction(yhat, number_of_neurons, range_start, range_end)
+    print(yhat)
+    a = numpy.zeros([1, 2])
+    a[:, 1] = yhat
+    rescaled_decoded_prediction = min_max_scaler.inverse_transform(a)[:, 1]
+
     # invert differencing
-    yhat = inverse_difference(raw_values, yhat, len(test_scaled) + 1 - i)
+    yhat = inverse_difference(raw_values, rescaled_decoded_prediction[0], len(test_coded) + 1 - i)
     # store forecast
     predictions.append(yhat)
-    expected = raw_values[len(train) + i + 1]
-    print('Month=%d, Predicted=%f, Expected=%f' % (i + 1, yhat, expected))
+    # expected = raw_values[len(train) + i + 1]
+    expected = raw_values[len(train_coded) + i + 1]
+    # print('Month=%d, Predicted=%f, Expected=%f' % (i + 1, yhat[0], expected))
+    print("Predicted: ", yhat, " Expected: ", expected)
 
 # report performance
 rmse = sqrt(mean_squared_error(raw_values[-12:], predictions))
