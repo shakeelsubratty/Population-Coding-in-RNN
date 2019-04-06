@@ -15,7 +15,7 @@ def code(x, r, sigma):
 
     # if x is not a number, return z as array of 0s
 
-    z = z + numpy.exp(-(0.5 / sigma ** exponent) * (x - r) ** exponent)
+    z = z + numpy.exp(-(0.5 / sigma ** exponent) * (x-r) ** exponent)
     return z
 
 

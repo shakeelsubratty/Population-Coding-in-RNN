@@ -17,7 +17,7 @@ import numpy
 import pop_coding
 
 # pop coding parameters
-number_of_neurons = 100
+number_of_neurons = 5000
 sigma = 0.05
 range_start = -1.0
 range_end = 1.0
@@ -106,44 +106,60 @@ def forecast_lstm(model, batch_size, X):
     return yhat
 
 
-# fit the model
-lstm_model = fit_lstm(train_coded, 1, 100, 4)
+# repeat experiment
+repeats = 30
+error_scores = list()
 
-print(number_of_coded_features - number_of_neurons)
-# forecast the entire training dataset to build up state for forecasting
-train_coded_reshaped = train_coded[:, 0:number_of_coded_features - number_of_neurons].reshape(len(train_coded), 1,
-                                                                                              number_of_coded_features - number_of_neurons)
+for r in range(repeats):
 
-lstm_model.predict(train_coded_reshaped, batch_size=1)
+    # fit the model
+    lstm_model = fit_lstm(train_coded, 1, 100, 4)
 
-# walk-forward validation on the test data
-predictions = list()
-for i in range(len(test_coded)):
-    # make one-step forecast
-    # print(test_coded)
-    X, y = test_coded[i, 0:number_of_coded_features - number_of_neurons], test_coded[i,
-                                                                          number_of_coded_features - number_of_neurons:number_of_coded_features]
-    yhat = forecast_lstm(lstm_model, 1, X)
+    print(number_of_coded_features - number_of_neurons)
 
-    yhat = pop_coding.decode_prediction(yhat, number_of_neurons, range_start, range_end)
-    print(yhat)
-    a = numpy.zeros([1, 2])
-    a[:, 1] = yhat
-    rescaled_decoded_prediction = min_max_scaler.inverse_transform(a)[:, 1]
+    # forecast the entire training dataset to build up state for forecasting
+    train_coded_reshaped = train_coded[:, 0:number_of_coded_features - number_of_neurons].reshape(len(train_coded), 1,
+                                                                                                  number_of_coded_features - number_of_neurons)
 
-    # invert differencing
-    yhat = inverse_difference(raw_values, rescaled_decoded_prediction[0], len(test_coded) + 1 - i)
-    # store forecast
-    predictions.append(yhat)
-    # expected = raw_values[len(train) + i + 1]
-    expected = raw_values[len(train_coded) + i + 1]
-    # print('Month=%d, Predicted=%f, Expected=%f' % (i + 1, yhat[0], expected))
-    print("Predicted: ", yhat, " Expected: ", expected)
+    lstm_model.predict(train_coded_reshaped, batch_size=1)
 
-# report performance
-rmse = sqrt(mean_squared_error(raw_values[-12:], predictions))
-print('Test RMSE: %.3f' % rmse)
-# line plot of observed vs predicted
-pyplot.plot(raw_values[-12:])
-pyplot.plot(predictions)
+    # walk-forward validation on the test data
+    predictions = list()
+    for i in range(len(test_coded)):
+        # make one-step forecast
+        # print(test_coded)
+        X, y = test_coded[i, 0:number_of_coded_features - number_of_neurons], test_coded[i,
+                                                                              number_of_coded_features - number_of_neurons:number_of_coded_features]
+        yhat = forecast_lstm(lstm_model, 1, X)
+        # yhat = y.reshape([1,100])
+        print(yhat)
+        yhat = pop_coding.decode_prediction(yhat, number_of_neurons, range_start, range_end)
+        # print(yhat)
+        a = numpy.zeros([1, 2])
+        a[:, 1] = yhat
+        rescaled_decoded_prediction = min_max_scaler.inverse_transform(a)[:, 1]
+
+        # invert differencing
+        yhat = inverse_difference(raw_values, rescaled_decoded_prediction[0], len(test_coded) + 1 - i)
+        # store forecast
+        predictions.append(yhat)
+        # expected = raw_values[len(train) + i + 1]
+        expected = raw_values[len(train_coded) + i + 1]
+        # print('Month=%d, Predicted=%f, Expected=%f' % (i + 1, yhat[0], expected))
+        print("Predicted: ", yhat, " Expected: ", expected)
+
+    # report performance
+    rmse = sqrt(mean_squared_error(raw_values[-12:], predictions))
+    print('%d) Test RMSE: %.3f' % (r+1, rmse))
+    # line plot of observed vs predicted
+    # pyplot.plot(raw_values[-12:])
+    # pyplot.plot(predictions)
+    # pyplot.show()
+    error_scores.append(rmse)
+
+# summarize results
+results = DataFrame()
+results['rmse'] = error_scores
+print(results.describe())
+results.boxplot()
 pyplot.show()
