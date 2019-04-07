@@ -24,7 +24,7 @@ def decode(c, r):
     return v
 
 
-def code_dataframe(input_dataframe, number_of_neurons, sigma_main, range_start, range_end):
+def code_dataframe(input_dataframe, number_of_neurons, sigma, range_start, range_end):
     # load dataset
     input_dataset = input_dataframe.values
     print(input_dataset.shape)
@@ -33,9 +33,9 @@ def code_dataframe(input_dataframe, number_of_neurons, sigma_main, range_start, 
     dataset_scaled = min_max_scaler.fit_transform(input_dataset)
     dataframe = pandas.DataFrame(dataset_scaled, columns=input_dataframe.columns)
 
-    print(dataframe)
-    print(dataframe.T.values)
-    print(pandas.DataFrame(numpy.cov(dataframe.T.values)))
+       # print(dataframe)
+    # print(dataframe.T.values)
+    # print(pandas.DataFrame(numpy.cov(dataframe.T.values)))
 
     # numpy.savetxt("houseprice_regression/housing_dataset_scaled.csv", dataframe, delimiter=",")
 
@@ -57,14 +57,14 @@ def code_dataframe(input_dataframe, number_of_neurons, sigma_main, range_start, 
             columns=list(range(i * number_of_neurons, (i + 1) * number_of_neurons)))
         x = X[:, i]
         for j in range(len(x)):
-            code_for_x = code(x[j], s, sigma_main)
+            code_for_x = code(x[j], s, sigma)
             coded_datasets[i].loc[j] = code_for_x
 
     # Coding Y
     coded_datasets[len(coded_datasets)] = pandas.DataFrame(
         columns=list(range((number_of_features - 1) * number_of_neurons, number_of_features * number_of_neurons)))
     for j in range(len(Y)):
-        code_for_y = code(Y[j], s, sigma_main)
+        code_for_y = code(Y[j], s, sigma)
         coded_datasets[len(coded_datasets) - 1].loc[j] = code_for_y
 
     final_dataframe = coded_datasets[0]
@@ -73,7 +73,7 @@ def code_dataframe(input_dataframe, number_of_neurons, sigma_main, range_start, 
         final_dataframe = final_dataframe.join(coded_datasets[i])
 
     print(final_dataframe)
-    plot_dataset(final_dataframe, 0, True)
+    # plot_dataset(final_dataframe, 0, True)
 
     # numpy.savetxt("houseprice_regression/housing_target_prices_coded.csv", coded_datasets[len(coded_datasets) - 1], delimiter=",")
 
