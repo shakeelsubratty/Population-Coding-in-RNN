@@ -17,8 +17,8 @@ import numpy
 import pop_coding
 
 # pop coding parameters
-number_of_neurons = 5000
-sigma = 0.05
+number_of_neurons = 10
+sigma = 50
 range_start = -1.0
 range_end = 1.0
 
@@ -102,7 +102,6 @@ def fit_lstm(train, batch_size, nb_epoch, neurons):
 def forecast_lstm(model, batch_size, X):
     X = X.reshape(1, 1, len(X))
     yhat = model.predict(X, batch_size=batch_size)
-    # print(yhat)
     return yhat
 
 
@@ -151,15 +150,12 @@ for r in range(repeats):
     # report performance
     rmse = sqrt(mean_squared_error(raw_values[-12:], predictions))
     print('%d) Test RMSE: %.3f' % (r+1, rmse))
-    # line plot of observed vs predicted
-    # pyplot.plot(raw_values[-12:])
-    # pyplot.plot(predictions)
-    # pyplot.show()
     error_scores.append(rmse)
 
 # summarize results
 results = DataFrame()
 results['rmse'] = error_scores
 print(results.describe())
+print(sigma)
 results.boxplot()
 pyplot.show()

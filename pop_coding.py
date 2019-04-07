@@ -31,6 +31,9 @@ def code_dataframe(input_dataframe, number_of_neurons, sigma, range_start, range
     # scale data
     min_max_scaler = preprocessing.MinMaxScaler()
     dataset_scaled = min_max_scaler.fit_transform(input_dataset)
+
+    print(numpy.var(dataset_scaled))
+
     dataframe = pandas.DataFrame(dataset_scaled, columns=input_dataframe.columns)
 
        # print(dataframe)

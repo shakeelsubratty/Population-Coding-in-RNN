@@ -14,10 +14,11 @@ import matplotlib as mlp
 mlp.use('TkAgg')
 from matplotlib import pyplot
 
-number_of_neurons = 100
-sigma = 0.2
+number_of_neurons = 10
+sigma = 100
 range_start = 0.0
 range_end = 1.0
+epochs = 10
 
 # load dataset
 dataframe = pandas.read_csv("houseprice_regression/housing.csv", delim_whitespace=True, header=None)
@@ -26,11 +27,13 @@ dataset = dataframe.values
 number_of_features = len(dataset[0, :])
 
 data_scaler = pop_coding.code_dataframe(dataframe, number_of_neurons, sigma, range_start, range_end)
+
 coded_dataframe = data_scaler[0]
 min_max_scaler = data_scaler[1]
 
 coded_dataset = coded_dataframe.values
 number_of_coded_features = len(coded_dataset[0, :])
+
 
 
 # k = 11 when number_of_samples = 506
@@ -135,20 +138,26 @@ def population_coding_model():
     return model
 
 
-estimator = KerasRegressor(build_fn=population_coding_model, epochs=100, batch_size=5, verbose=1)
+estimator = KerasRegressor(build_fn=population_coding_model, epochs=epochs, batch_size=5, verbose=1)
 
 start_time = int(round(time.time()*1000))
 population_error = k_fold_cv_population_coded(k=11, input_dataset=coded_dataset, estimator=estimator)
 end_time = int(round(time.time()*1000))
-print("Time taken in milliseconds:")
+print("Popcoding: Time taken in milliseconds")
 print(end_time - start_time)
-# estimator_uncoded = KerasRegressor(build_fn=baseline_model, epochs=100, batch_size=5, verbose=1)
 #
+# estimator_uncoded = KerasRegressor(build_fn=baseline_model, epochs=epochs, batch_size=5, verbose=1)
+#
+# start_time = int(round(time.time()*1000))
 # baseline_error = k_fold_cv_baseline(k=11, input_dataset=dataset, estimator=estimator_uncoded)
+# end_time = int(round(time.time()*1000))
+# print("baseline: Time taken in milliseconds")
+# print(end_time - start_time)
 
 results = pandas.DataFrame()
 # results['baseline'] = baseline_error
 results['population_coding'] = population_error
 print(results.describe())
+print(sigma)
 results.boxplot()
 pyplot.show()
