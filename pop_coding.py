@@ -76,7 +76,7 @@ def code_dataframe(input_dataframe, number_of_neurons, sigma, range_start, range
         final_dataframe = final_dataframe.join(coded_datasets[i])
 
     print(final_dataframe)
-    # plot_dataset(final_dataframe, 0, True)
+    plot_dataset(final_dataframe, 0, True)
 
     # numpy.savetxt("houseprice_regression/housing_target_prices_coded.csv", coded_datasets[len(coded_datasets) - 1], delimiter=",")
 

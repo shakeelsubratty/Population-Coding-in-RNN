@@ -15,7 +15,7 @@ mlp.use('TkAgg')
 from matplotlib import pyplot
 
 number_of_neurons = 10
-sigma = 100
+sigma = 0.02
 range_start = 0.0
 range_end = 1.0
 epochs = 10

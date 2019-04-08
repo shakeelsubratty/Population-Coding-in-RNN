@@ -18,7 +18,7 @@ import pop_coding
 
 # pop coding parameters
 number_of_neurons = 10
-sigma = 50
+sigma = 0.02
 range_start = -1.0
 range_end = 1.0
 
