@@ -1,3 +1,7 @@
+# Implementation of a baseline LSTM network using the shampoo time series dataset.
+# This code was sourced from an LSTM tutorial - written by Jason Brownlee
+# Source: https://machinelearningmastery.com/time-series-forecasting-long-short-term-memory-network-python/ (last accessed 06/04/2019)
+
 from pandas import DataFrame
 from pandas import Series
 from pandas import concat

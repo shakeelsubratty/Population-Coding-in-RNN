@@ -1,3 +1,9 @@
+# Implementation of a feed-foward neural network architecture
+# This file implements both the baseline model (i.e. without population coding) and the population coding model
+# The dataset used is the Boston houseprice dataset, however any supervised learning dataset could be used instead
+# The baseline model was intially based on code from Jason Brownlee, and has been adapted for this experiment
+# Source: https://machinelearningmastery.com/regression-tutorial-keras-deep-learning-library-python/ (Last accessed 06/04/2019)
+
 import numpy
 import pandas
 import pop_coding
@@ -14,6 +20,7 @@ import matplotlib as mlp
 mlp.use('TkAgg')
 from matplotlib import pyplot
 
+# parameters for experiments
 number_of_neurons = 10
 sigma = 0.02
 range_start = 0.0
@@ -26,6 +33,7 @@ dataset = dataframe.values
 
 number_of_features = len(dataset[0, :])
 
+# encode dataset into a population code
 data_scaler = pop_coding.code_dataframe(dataframe, number_of_neurons, sigma, range_start, range_end)
 
 coded_dataframe = data_scaler[0]
@@ -35,8 +43,8 @@ coded_dataset = coded_dataframe.values
 number_of_coded_features = len(coded_dataset[0, :])
 
 
-
-# k = 11 when number_of_samples = 506
+# Perform K-fold cross validation on input dataset using provided estimator (baseline)
+# k = 11 when number_of_samples = 506 (for housing dataset)
 def k_fold_cv_baseline(k, input_dataset, estimator):
     number_of_samples = len(input_dataset[:, 0])
     bucket_size = int(number_of_samples / k)
@@ -62,19 +70,19 @@ def k_fold_cv_baseline(k, input_dataset, estimator):
 
     return errors
 
-
+# Perform K-fold cross validation on input dataset using provided estimator (population coding)
 # k = 11 when number_of_samples = 506
 def k_fold_cv_population_coded(k, input_dataset, estimator):
     number_of_samples = len(input_dataset[:, 0])
     bucket_size = int(number_of_samples / k)
     errors = list()
     for i in range(k):
+        # select validation bucket, seperate rest as training data
         coded_dataset_validate = input_dataset[i * bucket_size:(i + 1) * bucket_size, :]
         coded_dataset_train_0 = input_dataset[0:i * bucket_size, :]
         coded_dataset_train_1 = input_dataset[(i + 1) * bucket_size:number_of_samples, :]
         coded_dataset_train = numpy.concatenate((coded_dataset_train_0, coded_dataset_train_1))
 
-        number_of_samples_train = len(coded_dataset_train[:, 0])
         number_of_samples_validate = len(coded_dataset_validate[:, 0])
 
         # split training data into input (X) and output (Y)
@@ -83,27 +91,26 @@ def k_fold_cv_population_coded(k, input_dataset, estimator):
 
         # split validation data into input (X) and output (Y)
         X_validate = coded_dataset_validate[:, 0:number_of_coded_features - number_of_neurons]
-        Y_validate = coded_dataset_validate[:, number_of_coded_features - number_of_neurons:number_of_coded_features]
 
+        # fit training data
         estimator.fit(X_train, Y_train)
+
+        # make prediction
         prediction = estimator.predict(X_validate)
 
+        # decode prediction from population code
         decoded_prediction = numpy.array(
             pop_coding.decode_prediction(prediction, number_of_neurons, range_start, range_end))
 
         a = numpy.zeros([number_of_samples_validate, number_of_features])
         a[:, number_of_features - 1] = decoded_prediction
-        rescaled_decoded_prediction = min_max_scaler.inverse_transform(a)[:, number_of_features - 1]
 
-        # numpy.savetxt("houseprice_regression/housing_prediction_coded.csv", prediction, delimiter=",")
-        # numpy.savetxt("houseprice_regression/housing_prediction_decoded.csv", decoded_prediction, delimiter=",")
-        # numpy.savetxt("houseprice_regression/housing_prediction_decoded_rescaled.csv", rescaled_decoded_prediction,
-        #               delimiter=",")
+        # rescale decoded prediction using min max scaler
+        rescaled_decoded_prediction = min_max_scaler.inverse_transform(a)[:, number_of_features - 1]
 
         print(rescaled_decoded_prediction)
 
         # Error between rescaled prediction and real values
-
         Y_validate_decoded = dataset[i * bucket_size:(i + 1) * bucket_size, number_of_features - 1]
 
         error = mean_squared_error(Y_validate_decoded,
@@ -114,7 +121,7 @@ def k_fold_cv_population_coded(k, input_dataset, estimator):
 
     return errors
 
-
+# Creates baseline model FFNN
 def baseline_model():
     model = Sequential()
     model.add(
@@ -125,7 +132,7 @@ def baseline_model():
     return model
 
 
-# define population_coding model
+# Creates population coding model FFNN
 def population_coding_model():
     # create model
     model = Sequential()
@@ -140,24 +147,25 @@ def population_coding_model():
 
 estimator = KerasRegressor(build_fn=population_coding_model, epochs=epochs, batch_size=5, verbose=1)
 
-start_time = int(round(time.time()*1000))
+# Run population coding model K-fold cross validation
+start_time = int(round(time.time() * 1000))
 population_error = k_fold_cv_population_coded(k=11, input_dataset=coded_dataset, estimator=estimator)
-end_time = int(round(time.time()*1000))
+end_time = int(round(time.time() * 1000))
 print("Popcoding: Time taken in milliseconds")
 print(end_time - start_time)
-#
-# estimator_uncoded = KerasRegressor(build_fn=baseline_model, epochs=epochs, batch_size=5, verbose=1)
-#
-# start_time = int(round(time.time()*1000))
-# baseline_error = k_fold_cv_baseline(k=11, input_dataset=dataset, estimator=estimator_uncoded)
-# end_time = int(round(time.time()*1000))
-# print("baseline: Time taken in milliseconds")
-# print(end_time - start_time)
+
+estimator_uncoded = KerasRegressor(build_fn=baseline_model, epochs=epochs, batch_size=5, verbose=1)
+
+# Run baseline model K-fold cross validation
+start_time = int(round(time.time()*1000))
+baseline_error = k_fold_cv_baseline(k=11, input_dataset=dataset, estimator=estimator_uncoded)
+end_time = int(round(time.time()*1000))
+print("baseline: Time taken in milliseconds")
+print(end_time - start_time)
 
 results = pandas.DataFrame()
-# results['baseline'] = baseline_error
+results['baseline'] = baseline_error
 results['population_coding'] = population_error
 print(results.describe())
-print(sigma)
 results.boxplot()
 pyplot.show()

@@ -1,3 +1,9 @@
+# Implementation of an LSTM neural network using a population coded model
+# An extension of the baseline model found in lstm_baseline.py
+# Lines 33 - 67 have been directly sourced from Jason Brownlee (primarily for use in dataset manipulation)
+# Source: https://machinelearningmastery.com/time-series-forecasting-long-short-term-memory-network-python/ (last accessed 06/04/2019)
+# The population coding models have been written by the author of the project, Shakeel Subratty.
+
 from pandas import DataFrame
 from pandas import Series
 from pandas import concat
@@ -16,18 +22,20 @@ from matplotlib import pyplot
 import numpy
 import pop_coding
 
-# pop coding parameters
+# Population coding parameters
 number_of_neurons = 10
 sigma = 0.02
 range_start = -1.0
 range_end = 1.0
 
 
+# Function written by Jason Brownlee
 # date-time parsing function for loading the dataset
 def parser(x):
     return datetime.strptime('190' + x, '%Y-%m')
 
 
+# Function written by Jason Brownlee
 # frame a sequence as a supervised learning problem
 def timeseries_to_supervised(data, lag=1):
     df = DataFrame(data)
@@ -38,6 +46,7 @@ def timeseries_to_supervised(data, lag=1):
     return df
 
 
+# Function written by Jason Brownlee
 # create a differenced series
 def difference(dataset, interval=1):
     diff = list()
@@ -45,6 +54,12 @@ def difference(dataset, interval=1):
         value = dataset[i] - dataset[i - interval]
         diff.append(value)
     return Series(diff)
+
+
+# Function written by Jason Brownlee
+# invert differenced value
+def inverse_difference(history, yhat, interval=1):
+    return yhat + history[-interval]
 
 
 # load dataset
@@ -58,6 +73,8 @@ diff_values = difference(raw_values, 1)
 # transform data to be supervised learning
 supervised = timeseries_to_supervised(diff_values, 1)
 supervised_values = supervised.values
+
+# Code below written by Shakeel Subratty as an extension of lstm_baseline.py
 
 number_of_features = len(supervised_values[0, :])
 number_of_samples = len(supervised_values[:, 0])
@@ -74,11 +91,6 @@ number_of_coded_features = len(supervised_coded_values[0, :])
 
 train_coded = supervised_coded_values[0:-12]
 test_coded = supervised_coded_values[-12:]
-
-
-# invert differenced value
-def inverse_difference(history, yhat, interval=1):
-    return yhat + history[-interval]
 
 
 # fit an LSTM network to training data
@@ -126,14 +138,10 @@ for r in range(repeats):
     predictions = list()
     for i in range(len(test_coded)):
         # make one-step forecast
-        # print(test_coded)
         X, y = test_coded[i, 0:number_of_coded_features - number_of_neurons], test_coded[i,
                                                                               number_of_coded_features - number_of_neurons:number_of_coded_features]
         yhat = forecast_lstm(lstm_model, 1, X)
-        # yhat = y.reshape([1,100])
-        print(yhat)
         yhat = pop_coding.decode_prediction(yhat, number_of_neurons, range_start, range_end)
-        # print(yhat)
         a = numpy.zeros([1, 2])
         a[:, 1] = yhat
         rescaled_decoded_prediction = min_max_scaler.inverse_transform(a)[:, 1]
@@ -142,20 +150,19 @@ for r in range(repeats):
         yhat = inverse_difference(raw_values, rescaled_decoded_prediction[0], len(test_coded) + 1 - i)
         # store forecast
         predictions.append(yhat)
-        # expected = raw_values[len(train) + i + 1]
         expected = raw_values[len(train_coded) + i + 1]
-        # print('Month=%d, Predicted=%f, Expected=%f' % (i + 1, yhat[0], expected))
         print("Predicted: ", yhat, " Expected: ", expected)
 
     # report performance
     rmse = sqrt(mean_squared_error(raw_values[-12:], predictions))
-    print('%d) Test RMSE: %.3f' % (r+1, rmse))
+    print('%d) Test RMSE: %.3f' % (r + 1, rmse))
     error_scores.append(rmse)
 
 # summarize results
 results = DataFrame()
 results['rmse'] = error_scores
 print(results.describe())
+print(number_of_neurons)
 print(sigma)
 results.boxplot()
 pyplot.show()

@@ -1,3 +1,6 @@
+# Implementation of method for encoding and decoding single values and Pandas dataframes to and from a population code
+# specified by function parmeters.
+
 import numpy
 import pandas
 from sklearn import preprocessing
@@ -7,6 +10,8 @@ mlp.use('TkAgg')
 from matplotlib import pyplot
 
 
+# Code a single value into the population code defined by
+# list of means r and standard deviation sigma
 def code(x, r, sigma):
     sigma = max(1e-6, sigma)
     exponent = 2
@@ -15,41 +20,34 @@ def code(x, r, sigma):
 
     # if x is not a number, return z as array of 0s
 
-    z = z + numpy.exp(-(0.5 / sigma ** exponent) * (x-r) ** exponent)
+    z = z + numpy.exp(-(0.5 / sigma ** exponent) * (x - r) ** exponent)
     return z
 
 
+# Deocde a single value from the population code defined by the list of means r
 def decode(c, r):
     v = numpy.sum(c * r) / numpy.sum(c)
     return v
 
 
+# Code dataframe into population code
 def code_dataframe(input_dataframe, number_of_neurons, sigma, range_start, range_end):
-    # load dataset
     input_dataset = input_dataframe.values
-    print(input_dataset.shape)
+
     # scale data
     min_max_scaler = preprocessing.MinMaxScaler()
     dataset_scaled = min_max_scaler.fit_transform(input_dataset)
 
-    print(numpy.var(dataset_scaled))
-
     dataframe = pandas.DataFrame(dataset_scaled, columns=input_dataframe.columns)
 
-       # print(dataframe)
-    # print(dataframe.T.values)
-    # print(pandas.DataFrame(numpy.cov(dataframe.T.values)))
-
-    # numpy.savetxt("houseprice_regression/housing_dataset_scaled.csv", dataframe, delimiter=",")
-
     dataset = dataframe.values
-    print(len(dataset[0, :]))
     number_of_features = len(dataset[0, :])
 
     # split into input (X) and output (Y)
-    X = dataset[:, 0:number_of_features - 1 ]
+    X = dataset[:, 0:number_of_features - 1]
     Y = dataset[:, number_of_features - 1]
 
+    # Create list of means (of neurons) in population code
     s = numpy.linspace(range_start, range_end, num=number_of_neurons)
 
     coded_datasets = {}
@@ -70,6 +68,7 @@ def code_dataframe(input_dataframe, number_of_neurons, sigma, range_start, range
         code_for_y = code(Y[j], s, sigma)
         coded_datasets[len(coded_datasets) - 1].loc[j] = code_for_y
 
+    # Recombine X and Y
     final_dataframe = coded_datasets[0]
 
     for i in range(1, len(coded_datasets)):
@@ -78,12 +77,12 @@ def code_dataframe(input_dataframe, number_of_neurons, sigma, range_start, range
     print(final_dataframe)
     plot_dataset(final_dataframe, 0, True)
 
-    # numpy.savetxt("houseprice_regression/housing_target_prices_coded.csv", coded_datasets[len(coded_datasets) - 1], delimiter=",")
-
     return [final_dataframe, min_max_scaler]
 
 
+# Decode prediction from population code
 def decode_prediction(input_prediction, number_of_neurons, range_start, range_end):
+    # Create list of means (of neurons) in population code
     s = numpy.linspace(range_start, range_end, num=number_of_neurons)
     output = []
 
